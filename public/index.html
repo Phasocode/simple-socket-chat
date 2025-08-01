@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Chat App</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+    <div id="chat-container">
+        <div id="sidebar">
+            <h3>Users in Chat</h3>
+            <ul id="user-list"></ul>
+        </div>
+        <div id="chat">
+            <div id="messages"></div>
+            <form id="message-form">
+                <input id="message-input" autocomplete="off" placeholder="Type your message..." />
+                <button id="send-btn">Send</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const name = prompt("Enter your name:") || "Anonymous";
+        socket.emit('new-user', name);
+
+        const messages = document.getElementById('messages');
+        const form = document.getElementById('message-form');
+        const input = document.getElementById('message-input');
+        const userList = document.getElementById('user-list');
+
+        function addMessage(msg, type) {
+            const div = document.createElement('div');
+            div.classList.add('message', type);
+            div.textContent = msg;
+            messages.appendChild(div);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        // Show history when joining
+        socket.on('chat-history', history => {
+            history.forEach(data => {
+                if (data.type === 'system') {
+                    addMessage(data.message, 'system');
+                } else {
+                    const type = socket.id === data.id ? 'my' : 'other';
+                    addMessage(`${data.name}: ${data.message}`, type);
+                }
+            });
+        });
+
+        socket.on('system-message', msg => {
+            addMessage(msg, 'system');
+        });
+
+        socket.on('chat-message', data => {
+            const type = socket.id === data.id ? 'my' : 'other';
+            addMessage(`${data.name}: ${data.message}`, type);
+        });
+
+        socket.on('update-users', users => {
+            userList.innerHTML = '';
+            users.forEach(user => {
+                const li = document.createElement('li');
+                li.textContent = user;
+                userList.appendChild(li);
+            });
+        });
+
+        form.addEventListener('submit', e => {
+            e.preventDefault();
+            const message = input.value.trim();
+            if (message) {
+                socket.emit('send-chat-message', message);
+                input.value = '';
+            }
+        });
+    </script>
+</body>
+
+</html>
